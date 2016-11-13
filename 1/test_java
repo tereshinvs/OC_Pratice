@@ -1,0 +1,1 @@
+arr = javaArray('java.math.BigDecimal', 4);

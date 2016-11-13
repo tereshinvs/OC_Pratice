@@ -1,0 +1,549 @@
+\documentclass[11pt]{article}
+
+\usepackage{a4wide}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+
+\newtheorem{theorem}{Теорема}
+\newtheorem{defenition}{Определение}
+\newtheorem{proposition}{Утверждение}
+
+\newcommand*{\hm}[1]{#1\nobreak\discretionary{}{\hbox{$\mathsurround=0pt #1$}}{}}
+\newcommand\abs[1]{\left\lvert#1\right\rvert}
+\newcommand{\scalar}[2]{\left<#1,#2\right>}
+\newcommand{\norm}[1]{\left\lVert #1 \right\lVert}
+\renewcommand{\d}[1]{\ensuremath{\operatorname{d}\!{#1}}}
+\newcommand{\const}{\ensuremath{\operatorname{const}}}
+\newcommand{\sgn}{\ensuremath{\operatorname{sgn}}}
+
+\begin{document}
+\thispagestyle{empty}
+
+\begin{center}
+\ \vspace{-3cm} \newline
+\includegraphics[width=0.5\textwidth]{msu.eps}\\
+{\scshape Московский государственный университет имени М.~В.~Ломоносова}\\
+Факультет вычислительной математики и кибернетики\\
+Кафедра системного анализа
+
+\vfill
+
+{\LARGE Отчёт по практикуму <<Оптимальное управление>>} \newline
+%\vspace{1cm}
+{\Huge\bfseries Задание 2: нелинейная задача оптимального управления}
+\end{center}
+
+\vspace{1cm}
+\begin{flushright}
+\large
+\textit{Студент 315 группы}\\
+В.~С.~Терёшин\\
+%\vspace{5mm}
+%\textit{Руководитель практикума}\\
+%к.ф.-м.н., доцент П.~П.~Петров
+\end{flushright}
+
+\vfill
+\begin{center}
+Москва, 2014
+\end{center}
+\pagebreak
+\tableofcontents
+\pagebreak
+\section{Постановка задачи}
+Рассматривается система из двух обыкновенных дифференциальных уравнений:
+$$
+\left\{
+\begin{aligned}
+\dot{x_1} = x_2 + u_2 + 2u_1 \\
+\dot{x_2} = u_1 + u_2 x_2
+\end{aligned} \right., \; \; \; t \in [0, T],
+$$
+где $x_1, x_2 \in \mathbb{R}$, $u = \left( u_1, u_2 \right) \in \mathbb{R}^2$. На возможные значения управляющих параметров $u_1$, $u_2$ наложены следующие ограничения:
+\begin{enumerate}
+\item
+либо $u_1 \geqslant 0, u_2 \in [k_1, k_2], k_2 \geqslant k1 > 0$,
+\item
+либо $u_1 \in \mathbb{R}, u_2 \in [k_1, k_2], k_2 \geqslant k1 > 0$.
+\end{enumerate}
+Задан начальный момент времени $t_0$ и начальная позиция $x(0)$: $x_1(0) = 0$, $x_2(0) = 0$. Необходимо за счёт выбора программного управления $u$ и начальной позиции перевести систему из заданной начальной позиции в такую позицию в момент времени $T$, в которой $\abs{x_1(T) - L} \leqslant \varepsilon$, $\abs{x_2(T)} \leqslant \varepsilon$. На множестве всех реализаций программных управлений, переводящих материальную точку в указанное множество, необходимо решить задачу оптимизации:
+$$
+J = \int \limits_0^T \left( u_1^2(t) + \gamma \abs{u_1(t)} \right) dt \to \min \limits_{u(\cdot)}, \; \; \; \gamma > 0.
+$$
+
+Необходимо написать в среде \texttt{Matlab} программу с пользовательским интерфейсом, которая по заданным параметрам $T$, $k$, $L$, $\varepsilon$, $\gamma$ определяет, разрешима ли задача оптимального управления (при одном из указанных двух ограничениях на управления). Если задача разрешима, то программа должна построить графики компонент оптимального управления компонент оптимальной траектории, сопряжённых переменных. Кроме того, программа должна определить количество переключений найденного оптимального управления, а также моменты переключений.
+
+Алгоритм построения оптимальной траектории не должен содержать перебор по параметрам, значения которых не ограничены, а также по более чем двум скалярным параметрам.
+\section{Теория}
+\subsection{Принцип максимума Понтрягина}
+Рассмотрим задачу оптимального управления в общем виде. Пусть требуется минимизировать функцию:
+$$
+J(x(\cdot), u(\cdot)) = \int \limits_{t_0}^T f_0(x(t), u(t), t) dt
+$$
+при условиях:
+\begin{gather}
+\dot{x}(t) = f(x(t), u(t), t), \;\;\; t \in [t_0, T], \notag \\
+g_i\left( x(t_0), x(T) \right) \leqslant 0, \;\;\; i = 1, \ldots, n \notag \\
+u \in \mathcal{P}, \notag
+\end{gather}
+где моменты $t_0$, $T$ заданы, $u \in \mathbb{R}^r$, $x \in \mathbb{R}^m$, $f \in \mathbb{R}^m$; управление $u(\cdot)$ --- кусочно-непрерывная функция, $f_i(x, u, t)$, $g_i(x, y)$ --- заданные функции.
+Рассмотрим функцию Гамильтона--Понтрягина:
+$$
+\mathcal{H}\left( \psi, x, u \right) = -\lambda_0 f_0(x, u, t) + \scalar{\psi}{f(x, u, t)},
+$$
+где $\psi(t) \in \mathcal{R}^n$. Сформулируем принцип максимума Понтрягина для этой задачи и функции $\mathcal{H}$:
+\begin{theorem}
+Пусть $\left( x^*(\cdot), u^*(\cdot) \right)$ --- оптимальная пара на $[t_0, T]$. Тогда существует вектор $\psi(t)$, определённый при $t \geqslant t_0$ и числа $\lambda_i, \; i = 0, \ldots, n$ такие, что
+\begin{enumerate}
+\item
+$\psi(t) \neq 0, \; \forall t \in [t_0, T]$ --- условие невырожденности;
+\item
+$\lambda = \left( \lambda_0, \ldots, \lambda_n \right) \neq 0, \; \lambda_i \geqslant 0, \; i = 0, \ldots, n$;
+\item
+$\dot{\psi} = -\tfrac{\partial\mathcal{H}}{\partial x} \bigg{\rvert}_{\substack{x = x^*(t) \\ u = u^*(t)}}$ --- условие сопряжённости;
+\item
+$\mathcal{H}\left( t, x^*(t), \psi(t), u^*(t) \right) = \sup \limits_{u(\cdot) \in \mathcal{P}} \mathcal{H}\left( t, x(t), \psi(t), u(t) \right)$ почти всюду;
+\item
+$\psi_i(t_0) = \sum \limits_{j=1}^n \tfrac{\partial g_i\left( x(t_0) \right)}{\partial x_i}, \; i = 1, \ldots, m$ --- условие трансверсальности в начальный момент времени;
+\item
+$\psi_i(T) = -\sum \limits_{j=1}^n \tfrac{\partial g_i\left( x(T) \right)}{\partial x_i}, \; i = 1, \ldots, m$ --- условие трансверсальности в конечный момент времени;
+\item
+$\lambda_j g_j \left( x(t_0), x(T) \right) = 0, \; j = 1, \ldots, n$ --- условие дополняющей нежёсткости.
+\end{enumerate}
+\end{theorem}
+\subsection{Применение принципа Гамильтона-Понтрягина}
+Рассмотрим функцию Гамильтона--Понтрягина для нашей задачи:
+\begin{gather}
+\mathcal{H}\left( x, \psi_0, \psi, u \right) = \psi_0 \left( u_1^2 + \gamma \abs{u_1(t)} \right) + \psi_1 \left(x_2 + u_2 + 2u_1 \right) + \psi_2 \left( u_1 + u_2 x_2 \right) = \notag \\
+= \psi_0 \left( u_1^2 + \gamma \abs{u_1(t)} \right) + \left( 2\psi_1 + \psi_2 \right) u_1 + \left( \psi_1 + \psi_2 x_2 \right) u_2 + \psi_1 x_2,
+\end{gather}
+где $\psi = \left( \psi_1, \psi_2 \right)$. % Принцип максимума Понтрягина для этой задачи утверждает, что если $\left( x^*(\cdot), u^*(\cdot) \right)$ - оптимальная пара, то существует $\left( \psi_0, \psi(\cdot) \right) \neq 0, \; \psi_0 \leqslant 0, \; \psi(\cdot) = \left( \psi_1(\cdot), \psi_2(\cdot) \right)$:
+Сопряжённая система:
+$$
+\left\{
+\begin{aligned}
+\dot{\psi_1} = -\frac{\partial \mathcal{H}}{\partial x_1} = 0, \\
+\dot{\psi_2} = -\frac{\partial \mathcal{H}}{\partial x_2} = -\psi_1 - u_2 \psi_2,
+\end{aligned} \right..
+$$
+%и выполнено условие максимума
+%$$
+%\mathcal{H}\left( x^*(t), \psi_0, \psi(t), u^*(t) \right) = \max \limits_{u(\cdot)} \mathcal{H}\left( x^*(t), \psi_0, \psi(t), u \right), \; \; \; \forall t \in [0, T],
+%$$
+%где максимум берётся по всем $u$ из одного из двух рассматриваемых множеств допустимых значений.
+
+Так как если $\left( x^*(\cdot), u^*(\cdot) \right)$ --- оптимальная пара, удовлетворяющая принципу максимума с сопряжёнными переменными $\left( \psi_0, \psi(\cdot) \right)$, то она удовлетворяет принципу максимума с сопряжёнными переменными $\left( \alpha\psi_0, \alpha\psi(\cdot) \right)$ для любого $\alpha > 0$. Поэтому достаточно рассмотреть два случая: $\psi_0 = 0$ и $\psi_0 < 0$.
+
+Заметим, что $\psi_1(t) = \psi_1(0) = \psi_1^0 = \operatorname{const}$. Из принципа максимума несложно видеть:
+$$
+u_2^* =
+\begin{cases}
+k_2, & \psi_1^0 + \psi_2 x_2 > 0, \\
+[k_1, k_2], & \psi_1^0 + \psi_2 x_2 = 0, \\
+k_1, & \psi_1^0 + \psi_2 x_2 < 0.
+\end{cases}
+$$
+Таким образом, возможен особый режим при $\psi_1^0 + \psi_2 x_2 = 0$. Однако в этом случае $\dot{\psi_1} \hm= \dot{\psi_2} = 0$, а значит, $\psi_1(t) = \psi_2(t) = 0$ для любого положительного $t$, что противоречит невырожденности вектора $\psi$.
+
+\subsubsection{Случай $\psi_0 = 0$}
+В этом случае оптимальное управление определяется из принципа максимума следующим образом:
+\begin{gather}
+u_1^* =
+\begin{cases}
++\infty, & 2\psi_1 + \psi_2 > 0, \\
+[0, +\infty], & 2\psi_1 + \psi_2 = 0, \\
+0, & 2\psi_1 + \psi_2 < 0;
+\end{cases}; \; \; \;
+u_2^* =
+\begin{cases}
+k_2, & \psi_1 + \psi_2 x_2 > 0, \\
+[k_1, k_2], & \psi_1 + \psi_2 x_2 = 0, \\
+k_1, & \psi_1 + \psi_2 x_2 < 0.
+\end{cases} \notag
+\end{gather}
+Однако управление $u_1^*$ может принимать лишь конечные значения, а значит, в этом случае задача оптимального управления неразрешима.
+
+\subsubsection{Случай $\psi_0 < 0$}
+
+Для нахождения оптимального управления $u_1^*$ исследуем на максимум следующее выражение:
+$$
+L(u_1) = \psi_0 u_1^2 + \gamma \psi_0 \abs{u_1} + u_1(2\psi_1 + \psi_2).
+$$
+
+\paragraph{Первый тип ограничений на управление}
+
+Рассмотрим первый тип ограничений на управление. Найдём при этом максимум $L$:
+\begin{gather}
+L'(u_1) = 2\psi_0 u_1 + \gamma \psi_0 + 2\psi_1 + \psi_2 = 0, \notag \\
+\Rightarrow u_1 = - \frac{2\psi_1 + \psi_2 + \gamma\psi_0}{2\psi_0}, \notag\\
+L''(u_1) = 2\psi_0 < 0. \notag
+\end{gather}
+Значит, описанный $u_1$ --- точка максимума.
+\begin{gather}
+u_1 = \begin{cases}
+- \frac{2\psi_1 + \psi_2 + \gamma\psi_0}{2\psi_0}, & 2\psi_1 + \psi_2 + \gamma\psi_0 \geqslant 0, \\
+0, & 2\psi_1 + \psi_2 + \gamma\psi_0 < 0.
+\end{cases} \notag
+\end{gather}
+
+Так как $\psi_0 = \const < 0$, то можно считать, что $\psi_0 = -\tfrac{1}{2}$.
+\begin{gather}
+\Rightarrow u_1 = 
+\begin{cases}
+2\psi_1 + \psi_2 - \frac{\gamma}{2}, & 2\psi_1 + \psi_2 - \frac{\gamma}{2} \geqslant 0, \\
+0, & 2\psi_1 + \psi_2 + \gamma\psi_0 < 0.
+\end{cases} \notag
+\end{gather}
+
+Теперь можно, проинтегрировав, найти $\psi_2$, считая, что $k = k_1$ или $k = k_2$:
+\begin{gather}
+\dot{\psi_2} = -\psi_1 - u_2 \psi_2, \notag \\
+\dot{\psi_2} = -\psi_1 - k \psi_2, \notag \\
+\psi_2 = \left( \psi_2^0 + \frac{\psi_1^0}{k} \right) \exp \left\{ -kt \right\} - \frac{\psi_1}{k}. \notag
+\end{gather}
+
+Заметим, что $2\psi_1^0 + \psi_2^0 - \tfrac{\gamma}{2} \geqslant 0$, так как иначе $\dot{x_2} = 0 + u_2 \cdot 0 = 0$ и задача неразрешима (кроме случая, когда точка $\left( 0, 0 \right)$ содержится в целевом множестве).
+
+Рассмотрим несколько случаев:
+\begin{enumerate}
+\item $\psi_1 < 0$
+\begin{enumerate}
+\item Переключение $u_1$
+
+\includegraphics[scale=0.8]{pics/less_u1.eps}
+
+В этом случае
+\begin{gather}
+\psi_2 = \left( \psi_2^0 + \frac{\psi_1^0}{k_1} \right) \exp \left\{ -k_1t \right\} - \frac{\psi_1^0}{k_1}, \notag \\
+\psi_2(\tau_1) = 2\psi_1^0 - \frac{\gamma}{2}, \notag \\
+\psi_1^0 \left( \frac{e^{-k_1\tau_1}}{k_1} - 2 - \frac{1}{k_1} \right) + \psi_2^0 e^{-k_1\tau_1} = -\frac{\gamma}{2}. \notag
+\end{gather}
+
+Решим систему и сопряжённую систему:
+\begin{gather}
+\left\{ 
+\begin{aligned}
+\dot{x_1} = x_2 + u_2 + 2u_1, \\
+\dot{x_2} = u_1 + u_2 x_2, \\
+\dot{\psi_1} = 0, \\
+\dot{\psi_2} = -\psi_1 - u_2 \psi_2.
+\end{aligned}
+\right. \notag \\
+\left\{ 
+\begin{aligned}
+\dot{x_1} = x_2 + k_1 + 4\psi_1 + 2\psi_2 - \gamma, \\
+\dot{x_2} = 2\psi_1 + \psi_2 - \frac{\gamma}{2} + k_1 x_2, \\
+\dot{\psi_1} = 0, \\
+\dot{\psi_2} = -\psi_1 - k_1 \psi_2.
+\end{aligned}
+\right. \notag \\
+\left\{ 
+\begin{aligned}
+\dot{x_1} = x_2 + k_1 + 4\psi_1 + 2\psi_2 - \gamma, \\
+\dot{x_2} = 2\psi_1 + \psi_2 - \frac{\gamma}{2} + k_1 x_2, \\
+\dot{\psi_1} = \psi_1^0, \\
+\psi_2 = \left( \psi_2^0 + \frac{\psi_1^0}{k_1} \right) \exp \left\{ -k_1t \right\} - \frac{\psi_1^0}{k_1}, \\
+\end{aligned}
+\right. \notag \\
+\left\{ 
+\begin{aligned}
+\dot{x_1} = x_2 + k_1 + 4\psi_1 + 2\left( \psi_2^0 + \frac{\psi_1^0}{k_1} \right) \exp \left\{ -k_1t \right\} - \frac{2\psi_1^0}{k_1} - \gamma, \\
+\dot{x_2} = 2\psi_1^0 + \left( \psi_2^0 + \frac{\psi_1^0}{k_1} \right) \exp \left\{ -k_1t \right\} - \frac{\psi_1^0}{k_1} - \frac{\gamma}{2} + k_1 x_2, \\
+\end{aligned}
+\right. \notag
+\end{gather}
+
+Значит, учитывая граничное условие $x_2(0) = 0$, получим:
+\begin{gather}
+x_2(t) = \psi_1^0 \left( -\frac{e^{-k_1 t}}{2k_1^2} + \frac{2e^{k_1 t}}{k_1} - \frac{e^{k_1 t}}{2k_1^2} + \frac{1}{k_1^2} - \frac{2}{k_1}\right) + \notag \\
++ \psi_2^0 \left( -\frac{e^{-k_1 t}}{2k_1} + \frac{e^{k_1 t}}{2k_1^2} \right) + \frac{\gamma}{2k_1}. \notag
+\end{gather}
+
+Перебирая $\tau_1 \in [0, T]$ и $x_2(\tau_1) \in [0, \varepsilon]$, получим линейнуй систему:
+$$
+\left\{
+\begin{aligned}
+\psi_1^0 \left( -\frac{e^{-k_1 \tau_1}}{2k_1^2} + \frac{2e^{k_1 \tau_1}}{k_1} - \frac{e^{k_1 \tau_1}}{2k_1^2} + \frac{1}{k_1^2} - \frac{2}{k_1}\right) + \psi_2^0 \left( -\frac{e^{-k_1 \tau_1}}{2k_1} + \frac{e^{k_1 \tau_1}}{2k_1^2} \right)  = x_2(\tau_1) - \frac{\gamma}{2k_1}, \\
+\psi_1^0 \left( \frac{e^{-k_1\tau_1}}{k_1} - 2 - \frac{1}{k_1} \right) + \psi_2^0 e^{-k_1\tau_1} = -\frac{\gamma}{2}.
+\end{aligned}
+\right.,
+$$
+решив которую, получим $\psi_1^0$ и $\psi_2^0$.
+
+\item Переключение $u_2$
+
+\includegraphics[scale=0.8]{pics/less_u2.eps}
+
+В этом случае
+\begin{gather}
+\psi_2 = \left( \psi_2^0 + \frac{\psi_1^0}{k_1} \right) \exp \left\{ -k_1t \right\} - \frac{\psi_1^0}{k_1}, \notag \\
+\psi_2(\tau_1)x_2(\tau_1) = \psi_1^0. \notag
+\end{gather}
+
+Аналогично предыдущему случаю, перебирая $\tau_1 \in [0, T]$ и $x_2(\tau_1) \in [0, \varepsilon]$, получим линейнуй систему
+$$
+\left\{
+\begin{aligned}
+\psi_1^0 \left( -\frac{e^{-k_1 \tau_1}}{2k_1^2} + \frac{2e^{k_1 \tau_1}}{k_1} - \frac{e^{k_1 \tau_1}}{2k_1^2} + \frac{1}{k_1^2} - \frac{2}{k_1}\right) + \psi_2^0 \left( -\frac{e^{-k_1 \tau_1}}{2k_1} + \frac{e^{k_1 \tau_1}}{2k_1^2} \right)  = x_2(\tau_1) - \frac{\gamma}{2k_1}, \\
+\psi_1^0 \left( \frac{e^{-k_1\tau_1}}{k_1} - \frac{1}{k_1} - \frac{1}{x_2(\tau_1)} \right) + \psi_2^0 e^{-k_1\tau_1} = 0.
+\end{aligned}
+\right.,
+$$
+решив которую, получим $\psi_1^0$ и $\psi_2^0$.
+
+\end{enumerate}
+\item $0 < \psi_1 < \tfrac{\gamma}{4}$ % ?!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+\begin{enumerate}
+\item
+Нет переключений
+
+\includegraphics[scale=0.8]{pics/between_0.eps}
+
+В этом случае
+\begin{gather}
+\psi_2 = \left( \psi_2^0 + \frac{\psi_1^0}{k_2} \right) \exp \left\{ -k_2t \right\} - \frac{\psi_1^0}{k_2}, \notag \\
+u_1 = 2\psi_1^0 + \psi_2 - \frac{\gamma}{2}, \notag \\
+u_2 = k_2. \notag
+\end{gather}
+
+Так как в этом случае значения $\psi_1 = \psi_1^0$ ограничены, то можно их перебрать по равномерной сетке на интервале $[0, \tfrac{\gamma}{4}]$.
+
+Решим систему и сопряжённую систему:
+\begin{gather}
+\left\{ 
+\begin{aligned}
+\dot{x_1} = x_2 + u_2 + 2u_1, \\
+\dot{x_2} = u_1 + u_2 x_2, \\
+\dot{\psi_1} = 0, \\
+\dot{\psi_2} = -\psi_1 - u_2 \psi_2.
+\end{aligned}
+\right. \notag \\
+\left\{ 
+\begin{aligned}
+\dot{x_1} = x_2 + k_2 + 4\psi_1 + 2\psi_2 - \gamma, \\
+\dot{x_2} = 2\psi_1 + \psi_2 - \frac{\gamma}{2} + k_2 x_2, \\
+\dot{\psi_1} = 0, \\
+\dot{\psi_2} = -\psi_1 - k_2 \psi_2.
+\end{aligned}
+\right. \notag \\
+\left\{ 
+\begin{aligned}
+\dot{x_1} = x_2 + k_2 + 4\psi_1 + 2\psi_2 - \gamma, \\
+\dot{x_2} = 2\psi_1 + \psi_2 - \frac{\gamma}{2} + k_2 x_2, \\
+\dot{\psi_1} = \psi_1^0, \\
+\psi_2 = \left( \psi_2^0 + \frac{\psi_1^0}{k_2} \right) \exp \left\{ -k_2t \right\} - \frac{\psi_1^0}{k_2}, \\
+\end{aligned}
+\right. \notag \\
+\left\{ 
+\begin{aligned}
+\dot{x_1} = x_2 + k_2 + 4\psi_1 + 2\left( \psi_2^0 + \frac{\psi_1^0}{k_2} \right) \exp \left\{ -k_2t \right\} - \frac{2\psi_1^0}{k_2} - \gamma, \\
+\dot{x_2} = 2\psi_1^0 + \left( \psi_2^0 + \frac{\psi_1^0}{k_2} \right) \exp \left\{ -k_2t \right\} - \frac{\psi_1^0}{k_2} - \frac{\gamma}{2} + k_2 x_2, \\
+\end{aligned}
+\right. \notag
+\end{gather}
+
+Значит, учитывая граничное условие $x_2(0) = 0$, получим:
+\begin{gather}
+x_2(t) = \psi_1^0 \left( -\frac{e^{-k_2 t}}{2k_2^2} + \frac{2e^{k_2 t}}{k_2} - \frac{e^{k_2 t}}{2k_2^2} + \frac{1}{k_2^2} - \frac{2}{k_2}\right) + \notag \\
++ \psi_2^0 \left( -\frac{e^{-k_2 t}}{2k_2} + \frac{e^{k_2 t}}{2k_2^2} \right) + \frac{\gamma}{2k_2}. \notag
+\end{gather}
+
+В момент времени $T$ обозначим множитель при $\psi_1^0$ за $C_1$, при $\psi_2^0$ за $C_2$ и свободный член за $C_3$. Тогда конечное условие $\abs{x_2(T)} < \varepsilon$ будет следующим:
+$$
+\abs{C_1 \psi_1^0 + C_2 \psi_2^0 + C_3} < \varepsilon.
+$$
+
+Откуда, считая известным $\psi_1^0$, можно найти ограничения на $\psi_2^0$ в случае $C_2 > 0$:
+$$
+\frac{-\varepsilon - C_3 - C_1 \psi_1^0}{C_2} < \psi_2^0 < \frac{\varepsilon - C_3 - C_1 \psi_1^0}{C_2},
+$$
+и в случае $C_2 < 0$:
+$$
+\frac{\varepsilon - C_3 - C_1 \psi_1^0}{C_2} < \psi_2^0 < \frac{-\varepsilon - C_3 - C_1 \psi_1^0}{C_2},
+$$
+
+Таким образом, мы получили ограничения на $\psi_1^0$ и $\psi_2^0$, удовлетворяющие условию перебора.
+
+\item
+Одно переключение или два переключения
+
+\includegraphics[scale=0.8]{pics/between_1.eps}
+
+\includegraphics[scale=0.8]{pics/between_2.eps}
+
+В данном случае нас будет интересовать переключение управления $u_1$ на прямой $\psi_2 = \frac{\gamma}{2} - 2\psi_1^0$ в момент $\tau_1$. В этом случае:
+\begin{gather}
+\psi_2(\tau_1) = \frac{\gamma}{2} - 2\psi_1^0, \notag \\
+\psi_2(\tau_1) = \left( \psi_2^0 + \frac{\psi_1^0}{k_2} \right) \exp \left\{ -k_2 \tau_1 \right\} - \frac{\psi_1^0}{k_2}, \notag \\
+\frac{\gamma}{2} - 2\psi_1^0 = \left( \psi_2^0 + \frac{\psi_1^0}{k_2} \right) \exp \left\{ -k_2 \tau_1 \right\} - \frac{\psi_1^0}{k_2}, \notag \\
+\psi_2^0 = \frac{\frac{\gamma}{2} - 2\psi_1^0 + \frac{\psi_1^0}{k_2} - \frac{\psi_1^0}{k_2}\exp\{-k_2 \tau_1\}}{\exp\{-k_2 \tau_1\}}. \notag	
+\end{gather}
+
+Таким образом, перебирая $\psi_1^0$ в $[0; \tfrac{\gamma}{4}]$, можно найти $\psi_2^0$.
+\end{enumerate}
+
+\item $\psi_1 > \tfrac{\gamma}{4}$
+\begin{enumerate}
+\item Переключение $u_1$
+
+\includegraphics[scale=0.8]{pics/greater_u1.eps}
+
+Решение аналогично случаю $\psi_1 < 0$ с переключением $u_1$. Получаем линейную систему:
+$$
+\left\{
+\begin{aligned}
+\psi_1^0 \left( -\frac{e^{-k_2 \tau_1}}{2k_2^2} + \frac{2e^{k_2 \tau_1}}{k_2} - \frac{e^{k_2 \tau_1}}{2k_2^2} + \frac{1}{k_2^2} - \frac{2}{k_2}\right) + \psi_2^0 \left( -\frac{e^{-k_2 \tau_1}}{2k_2} + \frac{e^{k_2 \tau_1}}{2k_2^2} \right)  = x_2(\tau_1) - \frac{\gamma}{2k_2}, \\
+\psi_1^0 \left( \frac{e^{-k_2\tau_1}}{k_2} - 2 - \frac{1}{k_2} \right) + \psi_2^0 e^{-k_2\tau_1} = -\frac{\gamma}{2}.
+\end{aligned}
+\right.,
+$$
+решив которую при переборе $\tau_1 \in [0, T]$ и $x_2(\tau_1) \in [0, \varepsilon]$, получим $\psi_1^0$ и $\psi_2^0$.
+
+\item Переключение $u_2$
+
+\includegraphics[scale=0.8]{pics/greater_u2.eps}
+
+Решение аналогично случаю $\psi_1 < 0$ с переключением $u_2$. Получаем линейную систему:
+$$
+\left\{
+\begin{aligned}
+\psi_1^0 \left( -\frac{e^{-k_2 \tau_1}}{2k_2^2} + \frac{2e^{k_2 \tau_1}}{k_2} - \frac{e^{k_2 \tau_1}}{2k_2^2} + \frac{1}{k_2^2} - \frac{2}{k_2}\right) + \psi_2^0 \left( -\frac{e^{-k_2 \tau_1}}{2k_2} + \frac{e^{k_2 \tau_1}}{2k_2^2} \right)  = x_2(\tau_1) - \frac{\gamma}{2k_2}, \\
+\psi_1^0 \left( \frac{e^{-k_2\tau_1}}{k_2} - \frac{1}{k_2} - \frac{1}{x_2(\tau_1)} \right) + \psi_2^0 e^{-k_2\tau_1} = 0.
+\end{aligned}
+\right.,
+$$
+решив которую при переборе $\tau_1 \in [0, T]$ и $x_2(\tau_1) \in [0, \varepsilon]$, получим $\psi_1^0$ и $\psi_2^0$.
+
+\end{enumerate}
+\end{enumerate}
+
+\paragraph{Второй тип ограничений на управление}
+
+Аналогично первому типу ограничений на управление, найдём максимум
+$$
+L(u_1) = \psi_0 u_1^2 + \gamma \psi_0 \abs{u_1} + u_1(2\psi_1 + \psi_2).
+$$
+\begin{enumerate}
+\item $u_1 < 0$
+\begin{gather}
+L(u_1) = \psi_0 u_1^2 - \gamma \psi_0 u_1 + u_1(2\psi_1 + \psi_2), \notag \\
+L'(u_1) = 2 \psi_0 u_1 - \gamma \psi_0 + 2\psi_1 + \psi_2, \notag \\
+u_1 = \frac{\gamma \psi_0 - 2\psi_1 - \psi_2}{2\psi_0} < 0, \notag \\
+L''(u_1) = 2\psi_0 < 0. \notag
+\end{gather}
+
+Найдём, в каком случае из описанных соотношений получается корректное $u_1 < 0$:
+\begin{gather}
+\frac{\gamma \psi_0 - 2\psi_1 - \psi_2}{2\psi_0} < 0, \notag \\
+\psi_2 < \gamma \psi_0 - 2\psi_1. \notag
+\end{gather}
+\item $u_1 \geqslant 0$
+\begin{gather}
+L(u_1) = \psi_0 u_1^2 + \gamma \psi_0 u_1 + u_1(2\psi_1 + \psi_2), \notag \\
+L'(u_1) = 2 \psi_0 u_1 + \gamma \psi_0 + 2\psi_1 + \psi_2, \notag \\
+u_1 = \frac{-\gamma \psi_0 - 2\psi_1 - \psi_2}{2\psi_0} \geqslant 0, \notag \\
+L''(u_1) = 2\psi_0 < 0. \notag
+\end{gather}
+Найдём, в каком случае из описанных соотношений получается корректное $u_1 \geqslant 0$:
+\begin{gather}
+\frac{-\gamma \psi_0 - 2\psi_1 - \psi_2}{2\psi_0} \geqslant 0, \notag \\
+\psi_2 \geqslant -\gamma \psi_0 - 2\psi_1. \notag
+\end{gather}
+\end{enumerate}
+Рассмотрим $\gamma \psi_0 - 2\psi_1$ и $-\gamma \psi_0 - 2\psi_1$. Вычтем из первого второе:
+$$
+\gamma \psi_0 - 2\psi_1 - \left(-\gamma \psi_0 - 2\psi_1 \right) = 2\gamma\psi_0 \leqslant 0.
+$$
+Значит, управление $u_1$ в данном случае задаётся следующим образом:
+$$
+u_1^* = 
+\begin{cases}
+\frac{\gamma\psi_0 - 2\psi_1 - \psi_2}{2\psi_0}, & \psi_2 \leqslant \gamma\psi_0 - 2\psi_1, \\
+\frac{-\gamma\psi_0 - 2\psi_1 - \psi_2}{2\psi_0}, & \psi_2 \geqslant -\gamma\psi_0 - 2\psi_1, \\
+0, & \psi_2 \in \left( \gamma\psi_0 - 2\psi_1, -\gamma\psi_0 - 2\psi_1 \right)
+\end{cases} \notag
+$$
+
+Также нам уже известно задание $u_2$:
+$$
+u_2^* =
+\begin{cases}
+k_2, & \psi_1^0 + \psi_2 x_2 > 0, \\
+[k_1, k_2], & \psi_1^0 + \psi_2 x_2 = 0, \\
+k_1, & \psi_1^0 + \psi_2 x_2 < 0.
+\end{cases}
+$$
+
+В силу сложности описанных управлений и большого числа случаев, будем решать эту задачу, перебирая вектор $\left( \psi_0^0, \psi_1^0, \psi_2^0 \right)$ по сфере единичного радиуса в трёхмерном пространстве. Будем перебирать $\theta \in [0, \pi]$ и $\varphi \in [0, 2\pi]$. Тогда
+\begin{gather}
+\psi_0^0 = \cos \theta, \notag \\
+\psi_1^0 = \sin \theta \cos \varphi, \notag \\
+\psi_2^0 = \sin \theta \sin \varphi. \notag
+\end{gather}
+
+Для решения задачи следует взять лишь те $\theta$ и $\varphi$, при которых $\psi_0^0 \leqslant 0$. Дальнейшее решение задачи состоит в интегрировании основной и сопряжённой систем.
+
+\section{Примеры работы}
+\subsection{Первая задача}
+\begin{enumerate}
+\item
+$T = 5$, $k_1 = 0.1$, $k_2 = 0.2$, $\gamma = 1$, $L = 3$, $\varepsilon = 1$.
+
+Результат --- одно переключение и $J = 0.11785$.
+
+\includegraphics[scale=1.0]{pics/example_1_1_x1_x2.eps}
+
+\includegraphics[scale=1.0]{pics/example_1_1_t_u1.eps}
+
+\includegraphics[scale=1.0]{pics/example_1_1_t_u2.eps}
+
+\item
+$T = 5$, $k_1 = 0.1$, $k_2 = 0.2$, $\gamma = 1$, $L = 1$, $\varepsilon = 0.2$.
+
+Результат --- нет переключений и $J = 0$.
+
+\includegraphics[scale=1.0]{pics/example_1_2_x1_x2.eps}
+
+\includegraphics[scale=1.0]{pics/example_1_2_t_u1.eps}
+
+\includegraphics[scale=1.0]{pics/example_1_2_t_u2.eps}
+
+\end{enumerate}
+\subsection{Вторая задача}
+\begin{enumerate}
+\item
+$T = 10$, $k_1 = 0.1$, $k_2 = 0.2$, $\gamma = 0.5$, $L = 50$, $\varepsilon = 2$.
+
+Результат --- четыре переключения и $J = 64.1144$.
+
+\includegraphics[scale=1.0]{pics/example_2_1_x1_x2.eps}
+
+\includegraphics[scale=1.0]{pics/example_2_1_t_u1.eps}
+
+\includegraphics[scale=1.0]{pics/example_2_1_t_u2.eps}
+
+\item
+$T = 10$, $k_1 = 0.1$, $k_2 = 0.2$, $\gamma = 0.5$, $L = 50$, $\varepsilon = 2$.
+
+Результат --- четыре переключения и $J = 62.3232$.
+
+\includegraphics[scale=1.0]{pics/example_2_2_x1_x2.eps}
+
+\includegraphics[scale=1.0]{pics/example_2_2_t_u1.eps}
+
+\includegraphics[scale=1.0]{pics/example_2_2_t_u2.eps}
+
+\end{enumerate}
+\pagebreak
+\addcontentsline{toc}{section}{Список литературы}
+\begin{thebibliography}{99}
+	\bibitem{PBGM} Понтрягин~Л.~С., Болтянский~В.~Г., Гамкрелидзе~Р.~В., Мищенко~Е.~Ф. Математическая теория оптимальных процессов. М:~ Наука, 1976.
+	\bibitem{Arutyunov} Арутюнов~А.~В., Магарил~--Ильяев~Г.~Г., Тихомиров~В.~М. Принцип максимума Понтрягина. М: Факториал Пресс, 2006.
+\end{thebibliography}
+\end{document}
